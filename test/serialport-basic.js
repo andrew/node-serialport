@@ -3,13 +3,22 @@
 var serialPort = require('../serialport');
 var sinon = require("sinon");
 var chai = require('chai');
-var mockBinding = require('../test_mocks/serial-port-binding');
-
+var FakeHardware = require('../test_mocks/linux-hardware');
 var expect = chai.expect;
+var fs = require('fs');
 var SerialPort = serialPort.SerialPort;
-serialPort.SerialPortBinding = mockBinding;
+var fakeHardware = new FakeHardware(serialPort);
 
 describe('SerialPort', function () {
+  var sandbox;
+
+  beforeEach(function () {
+    sandbox = sinon.sandbox.create();
+  });
+
+  afterEach(function () {
+    sandbox.restore();
+  })
 
   describe('Constructor', function () {
     it("opens the port immediately", function (done) {
@@ -19,17 +28,15 @@ describe('SerialPort', function () {
       });
     });
 
-
     it('emits an error on the factory when erroring without a callback', function (done) {
       // setup the bindings to report an error during open
-      var stubOpen = sinon.stub(mockBinding, 'open', function (path, opt, cb) {
+      var stubOpen = sandbox.stub(fakeHardware.binding, 'open', function (path, opt, cb) {
         cb('fakeErrr!');
       });
 
       // finish the test on error
       serialPort.once('error', function (err) {
         chai.assert.isDefined(err, "didn't get an error");
-        stubOpen.restore();
         done();
       });
 
@@ -51,19 +58,18 @@ describe('SerialPort', function () {
   describe('#open', function () {
 
     it('passes the port to the bindings', function (done) {
-      var openSpy = sinon.spy(mockBinding, 'open');
+      var openSpy = sandbox.spy(fakeHardware.binding, 'open');
       var port = new SerialPort('/dev/happyPort', {}, false);
       port.open(function (err) {
         expect(err).to.not.be.ok;
         expect(openSpy.calledWith('/dev/happyPort'));
-        openSpy.restore();
         done();
       });
 
     });
 
     it('calls back an error when opening an invalid port', function (done) {
-      var stubOpen = sinon.stub(mockBinding, 'open', function (path, opt, cb) {
+      var stubOpen = sandbox.stub(fakeHardware.binding, 'open', function (path, opt, cb) {
         cb('fakeErrr!');
       });
 
@@ -72,10 +78,26 @@ describe('SerialPort', function () {
         expect(err).to.be.ok;
         done();
       });
-
-      stubOpen.restore();
     });
 
+    it("emits data after being reopened", function (done) {
+      var testFd = fs.openSync('package.json', 'r');
+
+      var mockRead = sandbox.stub(serialPort.fs, 'read', function (fd, buffer, offset, length, position, cb) {
+        fs.read(testFd, buffer, offset, length, position, cb);
+      });
+
+      var port = new SerialPort('/dev/fun', function () {
+        port.close();
+        port.open(function () {
+          port.once('data', function (res) {
+            expect(res).to.eql(data);
+            done();
+          });
+          port.serialPoller.detectRead();
+        });
+      });
+    });
 
   });
 

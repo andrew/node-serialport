@@ -334,7 +334,7 @@ function SerialPortFactory() {
       }
 
       // console.log(">>REQUEST READ: ", toRead);
-      fs.read(self.fd, pool, pool.used, toRead, self.pos, function(err, bytesRead){
+      factory.fs.read(self.fd, pool, pool.used, toRead, self.pos, function(err, bytesRead){
         var readPool = pool;
         var bytesRequested = toRead;
         afterRead(err, bytesRead, readPool, bytesRequested);}
@@ -442,7 +442,7 @@ function SerialPortFactory() {
   };
 
   function listUnix (callback) {
-    fs.readdir("/dev/serial/by-id", function (err, files) {
+    factory.fs.readdir("/dev/serial/by-id", function (err, files) {
       if (err) {
         // if this directory is not found this could just be because it's not plugged in
         if (err.errno === 34) {
@@ -460,7 +460,7 @@ function SerialPortFactory() {
       var dirName = "/dev/serial/by-id";
       async.map(files, function (file, callback) {
         var fileName = path.join(dirName, file);
-        fs.readlink(fileName, function (err, link) {
+        factory.fs.readlink(fileName, function (err, link) {
           if (err) {
             if (callback) {
               callback(err);
@@ -478,7 +478,7 @@ function SerialPortFactory() {
           });
         });
       // Suspect code per ticket: #104 removed for deeper inspection.
-      // fs.readdir("/dev/serial/by-path", function(err_path, paths) {
+      // factory.fs.readdir("/dev/serial/by-path", function(err_path, paths) {
       //   if (err_path) {
       //     if (err.errno === 34) return callback(null, []);
       //     return console.log(err);
@@ -496,7 +496,7 @@ function SerialPortFactory() {
 
       //   async.map(items, function (file, callback) {
       //     var fileName = path.join(dirName, file);
-      //     fs.readlink(fileName, function (err, link) {
+      //     factory.fs.readlink(fileName, function (err, link) {
       //       if (err) {
       //         return callback(err);
       //       }
@@ -540,6 +540,7 @@ function SerialPortFactory() {
   factory.SerialPort = SerialPort;
   factory.parsers = parsers;
   factory.SerialPortBinding = SerialPortBinding;
+  factory.fs = fs;
 
   if (process.platform === 'win32') {
     factory.list = SerialPortBinding.list;

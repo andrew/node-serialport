@@ -4,64 +4,44 @@
 
 "use strict";
 
-var serialPortBinding;
-module.exports = serialPortBinding = {
+var SerialPortBinding = function (fakePort){
+  this.fakePort = fakePort || {
+    comName: '/dev/really-cool-serialport',
+    manufacturer: '',
+    serialNumber: '',
+    pnpId: '',
+    locationId: '',
+    vendorId: '',
+    productId: ''
+  };
+};
+
+SerialPortBinding.prototype = {
   open: function (path, opt, cb) {
     this.path = path;
     this.options = opt;
-    this.readable = true;
-    cb(null, 'fakeFileDescriptor');
+    cb && cb(null, 'fakeFileDescriptor');
   },
   write: function (fd, buffer, cb) {
     this.lastWrite = buffer;
-    cb(null, buffer.length);
-  },
-  _read: function() {
-
-    var echo = this.lastWrite;
-
-    if (!this.readable || this.paused || this.reading) return;
-
-    this.reading = true;
-
-    this.reading = false;
-
-    if (echo && echo.length > 0) {
-      this.lastWrite = null;
-      this.options.dataCallback(echo);
-    }
-
-    // do not emit events anymore after we declared the stream unreadable
-    if (!this.readable) return;
-
-    var self = this;
-    setTimeout(function() {
-      self._read();
-    }, 20);
+    cb && cb(null, buffer.length);
   },
   close: function (fd, cb) {
-    cb(null);
+    cb && cb(null);
   },
   list: function (cb) {
-    var fakeSerialPort = {
-      comName: '/dev/really-cool-serialport',
-      manufacturer: '',
-      serialNumber: '',
-      pnpId: '',
-      locationId: '',
-      vendorId: '',
-      productId: ''
-    };
-    cb([fakeSerialPort]);
+    cb && cb([ this.fakeSerialPort ]);
   },
   flush: function (fd, cb) {
-    cb(null, undefined);
+    cb && cb(null, undefined);
   },
   SerialportPoller: function (fd, cb) {
-    serialPortBinding.currentSerialPoller = this;
-    this.start = function () { serialPortBinding._read(); };
-    this.close = function () { };
-    this.cb = cb;
-  },
-  path: ''
+    this.detectRead = function () {
+      cb();
+    };
+    this.start = function () {};
+    this.close = function () {};
+  }
 };
+
+module.exports = SerialPortBinding;
